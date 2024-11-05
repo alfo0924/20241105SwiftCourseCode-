@@ -1,5 +1,5 @@
-<a href="link https://drive.google.com/drive/folders/1WLpgHL1t_AIcz7x77nh07r_rn2blvPVA?usp=drive_link
-">proj link </a>
+< a href = "https://drive.google.com/drive/folders/1WLpgHL1t_AIcz7x77nh07r_rn2blvPVA?usp=drive_link
+" > proj link </a>
 ## contentView2.swift 核心數據結構
 
 **LocalizedStrings 結構**
