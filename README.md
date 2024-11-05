@@ -1,6 +1,6 @@
 
 
-## 核心數據結構
+## contentView2.swift 核心數據結構
 
 **LocalizedStrings 結構**
 - 用於管理多語言內容的靜態字典
