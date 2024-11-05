@@ -1,105 +1,154 @@
 import SwiftUI
 
 struct ContentView: View {
-    // 餐廳資料陣列,使用@State來管理狀態
-    @State var restaurants = [ Restaurant(name: "Cafe Deadend", image: "cafedeadend"),
-                             Restaurant(name: "Homei", image: "homei"),
-                             Restaurant(name: "Teakha", image: "teakha"),
-                             Restaurant(name: "Cafe Loisl", image: "cafeloisl"),
-                             Restaurant(name: "Petite Oyster", image: "petiteoyster"),
-                             Restaurant(name: "For Kee Restaurant", image: "forkeerestaurant"),
-                             Restaurant(name: "Po's Atelier", image: "posatelier"),
-                             Restaurant(name: "Bourke Street Bakery", image: "bourkestreetbakery"),
-                             Restaurant(name: "Haigh's Chocolate", image: "haighschocolate"),
-                             Restaurant(name: "Palomino Espresso", image: "palominoespresso"),
-                             Restaurant(name: "Homei", image: "upstate"),
-                             Restaurant(name: "Traif", image: "traif"),
-                             Restaurant(name: "Graham Avenue Meats And Deli", image: "grahamavenuemeats"),
-                             Restaurant(name: "Waffle & Wolf", image: "wafflewolf"),
-                             Restaurant(name: "Five Leaves", image: "fiveleaves"),
-                             Restaurant(name: "Cafe Lore", image: "cafelore"),
-                             Restaurant(name: "Confessional", image: "confessional"),
-                             Restaurant(name: "Barrafina", image: "barrafina"),
-                             Restaurant(name: "Donostia", image: "donostia"),
-                             Restaurant(name: "Royal Oak", image: "royaloak"),
-                             Restaurant(name: "CASK Pub and Kitchen", image: "caskpubkitchen")
+    // 狀態管理
+    @State var restaurants = [ Restaurant(name: "Cafe Deadend", chineseName: "死胡同咖啡", image: "cafedeadend"),
+                             Restaurant(name: "Homei", chineseName: "好美食府", image: "homei"),
+                             Restaurant(name: "Teakha", chineseName: "茶。家", image: "teakha"),
+                             Restaurant(name: "Cafe Loisl", chineseName: "洛伊斯咖啡", image: "cafeloisl"),
+                             Restaurant(name: "Petite Oyster", chineseName: "小蠔", image: "petiteoyster"),
+                             Restaurant(name: "For Kee Restaurant", chineseName: "科記餐廳", image: "forkeerestaurant"),
+                             Restaurant(name: "Po's Atelier", chineseName: "波的工作室", image: "posatelier"),
+                             Restaurant(name: "Bourke Street Bakery", chineseName: "伯克街麵包店", image: "bourkestreetbakery"),
+                             Restaurant(name: "Haigh's Chocolate", chineseName: "海格巧克力", image: "haighschocolate"),
+                             Restaurant(name: "Palomino Espresso", chineseName: "帕洛米諾咖啡", image: "palominoespresso"),
+                             Restaurant(name: "Homei", chineseName: "好美食府", image: "upstate"),
+                             Restaurant(name: "Traif", chineseName: "特拉伊夫", image: "traif"),
+                             Restaurant(name: "Graham Avenue Meats And Deli", chineseName: "格雷厄姆大道肉店", image: "grahamavenuemeats"),
+                             Restaurant(name: "Waffle & Wolf", chineseName: "窩夫與狼", image: "wafflewolf"),
+                             Restaurant(name: "Five Leaves", chineseName: "五葉", image: "fiveleaves"),
+                             Restaurant(name: "Cafe Lore", chineseName: "傳說咖啡", image: "cafelore"),
+                             Restaurant(name: "Confessional", chineseName: "告解室", image: "confessional"),
+                             Restaurant(name: "Barrafina", chineseName: "巴拉菲納", image: "barrafina"),
+                             Restaurant(name: "Donostia", chineseName: "多諾斯提亞", image: "donostia"),
+                             Restaurant(name: "Royal Oak", chineseName: "皇家橡樹", image: "royaloak"),
+                             Restaurant(name: "CASK Pub and Kitchen", chineseName: "卡斯克酒吧廚房", image: "caskpubkitchen")
     ]
     
-    // 儲存被選中的餐廳
     @State private var selectedRestaurant: Restaurant?
-    // 控制動作表單的顯示狀態
     @State private var showActionSheet = false
     
+    // 使用@AppStorage替代@State來持久化儲存使用者偏好
+    @AppStorage("isDarkMode") private var isDarkMode = false
+    @AppStorage("isChinese") private var isChinese = false
+    
+    @Environment(\.colorScheme) var colorScheme
+    
+    // 儲存收藏狀態的key
+    private let favoritesKey = "RestaurantFavorites"
+    
+    init() {
+        // 載入收藏狀態
+        if let savedData = UserDefaults.standard.data(forKey: favoritesKey),
+           let decodedFavorites = try? JSONDecoder().decode([String: Bool].self, from: savedData) {
+            // 更新餐廳的收藏狀態
+            _restaurants = State(initialValue: restaurants.map { restaurant in
+                var updatedRestaurant = restaurant
+                updatedRestaurant.isFavorite = decodedFavorites[restaurant.id.uuidString] ?? false
+                return updatedRestaurant
+            })
+        }
+    }
+    
+    // 儲存收藏狀態的函數
+    private func saveFavorites() {
+        let favorites = restaurants.reduce(into: [String: Bool]()) { dict, restaurant in
+            dict[restaurant.id.uuidString] = restaurant.isFavorite
+        }
+        if let encoded = try? JSONEncoder().encode(favorites) {
+            UserDefaults.standard.set(encoded, forKey: favoritesKey)
+        }
+    }
+    
     var body: some View {
-        List {
-            // 使用ForEach遍歷餐廳陣列
-            ForEach(restaurants) { restaurant in
-                BasicImageRow(restaurant: restaurant)
-                    // 點擊時觸發動作表單
-                    .onTapGesture {
-                        self.selectedRestaurant = restaurant
-                        self.showActionSheet = true
-                    }
+        NavigationView {
+            List {
+                ForEach(restaurants) { restaurant in
+                    BasicImageRow(restaurant: restaurant, isChinese: isChinese)
+                        .onTapGesture {
+                            self.selectedRestaurant = restaurant
+                            self.showActionSheet = true
+                        }
+                }
+                .onDelete { indexSet in
+                    restaurants.remove(atOffsets: indexSet)
+                    saveFavorites() // 儲存更新後的狀態
+                }
             }
-            // 啟用滑動刪除功能
-            .onDelete { indexSet in
-                restaurants.remove(atOffsets: indexSet)
+            .navigationTitle(isChinese ? "餐廳列表" : "Restaurants")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        Button(action: {
+                            isDarkMode.toggle()
+                        }) {
+                            Image(systemName: isDarkMode ? "moon.fill" : "moon")
+                        }
+                        
+                        Button(action: {
+                            isChinese.toggle()
+                        }) {
+                            Text(isChinese ? "EN" : "中")
+                        }
+                    }
+                }
             }
         }
-        // 設定動作表單
+        .preferredColorScheme(isDarkMode ? .dark : .light)
         .actionSheet(isPresented: $showActionSheet) {
             ActionSheet(
-                title: Text("What do you want to do"),
+                title: Text(isChinese ? "你想要做什麼？" : "What do you want to do"),
                 buttons: [
-                    // 收藏按鈕
-                    .default(Text("Mark as Favorite")) {
+                    .default(Text(isChinese ? "標記為最愛" : "Mark as Favorite")) {
                         if let restaurant = selectedRestaurant,
                            let index = restaurants.firstIndex(where: { $0.id == restaurant.id }) {
                             restaurants[index].isFavorite.toggle()
+                            saveFavorites() // 儲存收藏狀態
                         }
                     },
-                    // 刪除按鈕
-                    .destructive(Text("Delete")) {
+                    .destructive(Text(isChinese ? "刪除" : "Delete")) {
                         if let restaurant = selectedRestaurant,
                            let index = restaurants.firstIndex(where: { $0.id == restaurant.id }) {
                             restaurants.remove(at: index)
+                            saveFavorites() // 儲存更新後的狀態
                         }
                     },
-                    // 取消按鈕
-                    .cancel()
+                    .cancel(Text(isChinese ? "取消" : "Cancel"))
                 ]
             )
         }
     }
 }
 
-// 餐廳資料結構
-struct Restaurant: Identifiable {
-    var id = UUID() // 唯一識別碼
-    var name: String // 餐廳名稱
-    var image: String // 圖片名稱
-    var isFavorite: Bool = false // 收藏狀態
-    var isCheckIn: Bool = false // 打卡狀態
+// Restaurant結構需要符合Codable協議以支援JSON編碼解碼
+struct Restaurant: Identifiable, Codable {
+    var id = UUID()
+    var name: String
+    var chineseName: String
+    var image: String
+    var isFavorite: Bool = false
+    var isCheckIn: Bool = false
 }
 
-// 自定義餐廳列表項目視圖
 struct BasicImageRow: View {
     var restaurant: Restaurant
+    var isChinese: Bool
     
     var body: some View {
         HStack {
-            // 顯示餐廳圖片
             Image(restaurant.image)
-                .resizable() // 可調整大小
-                .frame(width: 40, height: 40) // 設定圖片大小
-                .cornerRadius(5) // 設定圓角
-            // 顯示餐廳名稱
-            Text(restaurant.name)
+                .resizable()
+                .frame(width: 40, height: 40)
+                .cornerRadius(5)
+            Text(isChinese ? restaurant.chineseName : restaurant.name)
+            if restaurant.isFavorite {
+                Image(systemName: "star.fill")
+                    .foregroundColor(.yellow)
+            }
         }
     }
 }
 
-// 預覽視圖
 #Preview {
     ContentView()
 }
